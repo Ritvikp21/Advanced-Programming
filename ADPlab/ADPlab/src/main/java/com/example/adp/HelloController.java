@@ -2,14 +2,17 @@ package com.example.adp;
 
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collection;
-import java.util.SortedSet;
-import java.util.TreeMap;
+import java.util.*;
 
 @RestController
 class HelloController {
-    private final TreeMap<Long, MyPOJO> map = new TreeMap<>();
+    //private final TreeMap<Long, MyPOJO> map = new TreeMap<>();
 
+    private final PojoRepository pojoRepository;
+
+    public HelloController(PojoRepository pojoRepository){
+        this.pojoRepository = pojoRepository;
+    }
     @GetMapping("/")
     public String hello() {
         return "hello world!";
@@ -27,14 +30,15 @@ class HelloController {
 //                new MyPOJO("Sarah", "Brown", 7654321) };
 //    }
 
+
     @GetMapping("/pojo")
     public Collection<MyPOJO> getAll() {
-        return map.values();
+        return this.pojoRepository.findAll();
     }
 
     @GetMapping("/pojo/{id}")
     public MyPOJO getById(@PathVariable("id") Long id) {
-        return map.get(id);
+        return this.pojoRepository.findById(id).orElseThrow(ResourceNotFoundException::new);
     }
 
     @GetMapping("/pojo/{first}/{last}/{id}")
@@ -50,29 +54,36 @@ class HelloController {
                 new Modules("Advanced Programming", 3867482)};
     }
 
+
     @PostMapping("/pojo")
     public MyPOJO postPojo(@RequestBody MyPOJO body) {
-        long nextId = 1;
-        if (!this.map.isEmpty()) {
-            nextId = ((SortedSet<Long>) this.map.keySet()).last() + 1;
-        }
-        MyPOJO newItem = new MyPOJO(body.getFirstName(), body.getLastName(), nextId);
-        this.map.put(nextId, newItem);
-        return newItem;
+        body.setIdNumber(0); // clear any ID number to prevent update
+
+        return this.pojoRepository.save(body);
     }
+
 
     @PutMapping("/pojo")
     public MyPOJO putPojo(@RequestBody MyPOJO body) {
-        this.map.put(body.getIdNumber(), body);
-        return body;
+        return this.pojoRepository.save(body);
     }
 
-    @DeleteMapping("/pojo/{id}")
     public String[] deletePojo(@PathVariable long id) {
-        if (this.map.remove(id) != null) {
-            return new String[]{"item removed"};
+        if (this.pojoRepository.existsById(id)) {
+            this.pojoRepository.deleteById(id);
+            return new String[] {"item removed"};
         } else {
-            return new String[]{"item not found"};
+            return new String[] {"item not found"};
         }
+    }
+
+    @PostMapping("pojos")
+    public List<MyPOJO> postABunch(@RequestBody List<MyPOJO> list) {
+        List<MyPOJO> returnList = new ArrayList<>(list.size());
+        for(MyPOJO pojo : list) {
+            pojo.setIdNumber(0);
+            returnList.add(this.pojoRepository.save(pojo));
+        }
+        return returnList;
     }
 }
